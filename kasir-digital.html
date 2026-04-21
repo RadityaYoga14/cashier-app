@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Kasir Digital" />
+  <meta name="theme-color" content="#D97706" />
+  <title>Kasir Digital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Nunito', sans-serif; background: #FAFAF9; min-height: 100vh; }
+    button { font-family: 'Nunito', sans-serif; transition: transform 0.1s; }
+    button:active { transform: scale(0.95) !important; }
+    input, select { font-family: 'Nunito', sans-serif; }
+    input:focus, select:focus { outline: none; border-color: #D97706 !important; box-shadow: 0 0 0 3px rgba(217,119,6,0.18) !important; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+    #loading { display:flex; align-items:center; justify-content:center; height:100vh; flex-direction:column; gap:16px; color:#D97706; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div id="loading">
+      <div style="font-size:72px">🏪</div>
+      <div style="font-size:20px;font-weight:800;font-family:'Nunito',sans-serif;">Memuat sistem kasir...</div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.10.0/umd/Recharts.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect } = React;
+    const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    const IDR = n => new Intl.NumberFormat("id-ID", { style:"currency", currency:"IDR", minimumFractionDigits:0 }).format(n ?? 0);
+    const dateStr = d => new Date(d).toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" });
+    const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+    const todayISO = () => new Date().toISOString().split("T")[0];
+
+    const load  = (k,d) => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):d; } catch{ return d; } };
+    const save  = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch{} };
+
+    // ── Design tokens ─────────────────────────────────────────────────────────
+    const C = {
+      amber:"#D97706", amberDark:"#92400E", amberMid:"#FEF3C7", amberLight:"#FFFBEB",
+      green:"#059669", greenLight:"#ECFDF5",
+      red:"#DC2626", redLight:"#FEF2F2",
+      gray:"#6B7280", border:"#E5E7EB", text:"#111827", muted:"#9CA3AF",
+      bg:"#FAFAF9", white:"#FFFFFF", surface:"#F9FAFB",
+    };
+    const card = (ex={}) => ({ background:C.white, borderRadius:16, padding:20, boxShadow:"0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", border:`1px solid ${C.border}`, ...ex });
+    const inp  = (ex={}) => ({ width:"100%", padding:"13px 16px", borderRadius:10, border:`1.5px solid ${C.border}`, fontSize:17, fontFamily:"inherit", outline:"none", color:C.text, background:C.white, ...ex });
+    const btn  = (bg,ex={}) => ({ background:bg, color:"#fff", border:"none", borderRadius:12, fontFamily:"inherit", fontWeight:700, cursor:"pointer", ...ex });
+
+    // ── Modal & ConfirmModal ──────────────────────────────────────────────────
+    function Modal({ title, onClose, children }) {
+      return (
+        <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:C.white, borderRadius:20, padding:28, width:"100%", maxWidth:420, boxShadow:"0 20px 60px rgba(0,0,0,0.28)" }}>
+            <div style={{ fontWeight:900, fontSize:20, marginBottom:20 }}>{title}</div>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    function ConfirmModal({ message, onConfirm, onCancel }) {
+      return (
+        <Modal title="⚠️ Konfirmasi" onClose={onCancel}>
+          <div style={{ fontSize:16, color:C.gray, marginBottom:24, lineHeight:1.65 }}>{message}</div>
+          <div style={{ display:"flex", gap:12 }}>
+            <button onClick={onConfirm} style={{ ...btn(C.red), flex:1, padding:15, fontSize:16 }}>Ya, Hapus</button>
+            <button onClick={onCancel}  style={{ flex:1, padding:15, fontSize:16, borderRadius:12, border:`1.5px solid ${C.border}`, background:C.white, fontFamily:"inherit", fontWeight:700, cursor:"pointer", color:C.text }}>Batal</button>
+          </div>
+        </Modal>
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ROOT APP
+    // ══════════════════════════════════════════════════════════════════════════
+    function App() {
+      const [tab, setTab]               = useState("kasir");
+      const [products, setProducts]     = useState([]);
+      const [transactions, setTx]       = useState([]);
+      const [expenses, setExp]          = useState([]);
+      const [manualIncome, setMInc]     = useState([]);
+      const [storeName, setStoreName]   = useState("Toko Saya");
+      const [renameOpen, setRenameOpen] = useState(false);
+      const [renameVal, setRenameVal]   = useState("");
+
+      useEffect(() => {
+        setProducts(load("ksr-products", []));
+        setTx(load("ksr-tx", []));
+        setExp(load("ksr-exp", []));
+        setMInc(load("ksr-minc", []));
+        setStoreName(load("ksr-name", "Toko Saya"));
+      }, []);
+
+      const sp = p => { setProducts(p); save("ksr-products", p); };
+      const st = t => { setTx(t);       save("ksr-tx", t); };
+      const se = e => { setExp(e);      save("ksr-exp", e); };
+      const sm = m => { setMInc(m);     save("ksr-minc", m); };
+      const sn = n => { setStoreName(n);save("ksr-name", n); };
+
+      const TABS = [
+        { id:"kasir",     icon:"🛒", label:"Kasir" },
+        { id:"produk",    icon:"📦", label:"Produk" },
+        { id:"laporan",   icon:"📊", label:"Laporan" },
+        { id:"pembukuan", icon:"📒", label:"Pembukuan" },
+      ];
+
+      return (
+        <div style={{ fontFamily:"'Nunito',sans-serif", background:C.bg, minHeight:"100vh", color:C.text }}>
+
+          {/* ── Rename Modal ── */}
+          {renameOpen && (
+            <Modal title="✏️ Ganti Nama Toko" onClose={() => setRenameOpen(false)}>
+              <input
+                autoFocus
+                value={renameVal}
+                onChange={e => setRenameVal(e.target.value)}
+                onKeyDown={e => { if (e.key==="Enter" && renameVal.trim()) { sn(renameVal.trim()); setRenameOpen(false); } }}
+                placeholder="Masukkan nama toko..."
+                style={{ ...inp(), marginBottom:16 }}
+              />
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={() => { if (renameVal.trim()) { sn(renameVal.trim()); setRenameOpen(false); } }}
+                  style={{ ...btn(C.amber), flex:1, padding:15, fontSize:16 }}>💾 Simpan</button>
+                <button onClick={() => setRenameOpen(false)}
+                  style={{ flex:1, padding:15, fontSize:16, borderRadius:12, border:`1.5px solid ${C.border}`, background:C.white, fontFamily:"inherit", fontWeight:700, cursor:"pointer", color:C.text }}>Batal</button>
+              </div>
+            </Modal>
+          )}
+
+          {/* ── Header ── */}
+          <div style={{ background:`linear-gradient(135deg, ${C.amber} 0%, ${C.amberDark} 100%)`, padding:"16px 20px", display:"flex", alignItems:"center", gap:14, boxShadow:"0 4px 16px rgba(146,64,14,0.3)" }}>
+            <span style={{ fontSize:38 }}>🏪</span>
+            <div style={{ flex:1 }}>
+              <div style={{ color:"#fff", fontWeight:900, fontSize:22, lineHeight:1.2 }}>{storeName}</div>
+              <div style={{ color:"#FDE68A", fontSize:12, fontWeight:700 }}>Sistem Kasir Digital</div>
+            </div>
+            <button onClick={() => { setRenameVal(storeName); setRenameOpen(true); }}
+              style={{ ...btn("rgba(255,255,255,0.2)"), padding:"11px 18px", fontSize:14, border:"1.5px solid rgba(255,255,255,0.4)" }}>
+              ✏️ Ganti Nama
+            </button>
+          </div>
+
+          {/* ── Nav ── */}
+          <div style={{ display:"flex", background:C.white, borderBottom:`2px solid ${C.border}`, position:"sticky", top:0, zIndex:100, boxShadow:"0 2px 8px rgba(0,0,0,0.05)" }}>
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                flex:1, padding:"12px 4px", border:"none",
+                borderBottom: tab===t.id ? `3px solid ${C.amber}` : "3px solid transparent",
+                background:   tab===t.id ? C.amberMid : C.white,
+                color:        tab===t.id ? C.amberDark : C.gray,
+                fontWeight:   tab===t.id ? 900 : 600, fontSize:14,
+                display:"flex", flexDirection:"column", alignItems:"center", gap:3, cursor:"pointer",
+              }}>
+                <span style={{ fontSize:22 }}>{t.icon}</span>{t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Content ── */}
+          <div style={{ padding:"20px 16px", maxWidth:980, margin:"0 auto" }}>
+            {tab==="kasir"     && <KasirSection     products={products} onCheckout={tx => st([...transactions, tx])} />}
+            {tab==="produk"    && <ProdukSection    products={products} onSave={sp} />}
+            {tab==="laporan"   && <LaporanSection   transactions={transactions} expenses={expenses} manualIncome={manualIncome} />}
+            {tab==="pembukuan" && <PembukuanSection transactions={transactions} expenses={expenses} manualIncome={manualIncome}
+                                    onAddExpense={e => se([...expenses, e])} onAddIncome={m => sm([...manualIncome, m])} />}
+          </div>
+        </div>
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // KASIR
+    // ══════════════════════════════════════════════════════════════════════════
+    function KasirSection({ products, onCheckout }) {
+      const [cart, setCart]       = useState([]);
+      const [payment, setPayment] = useState("");
+      const [done, setDone]       = useState(null);
+
+      const total    = cart.reduce((s,i) => s + i.price * i.qty, 0);
+      const payNum   = parseInt(payment) || 0;
+      const change   = payNum - total;
+      const canCheck = cart.length > 0 && payNum >= total && payNum > 0;
+
+      const addToCart = p => setCart(prev => {
+        const ex = prev.find(i => i.id===p.id);
+        return ex ? prev.map(i => i.id===p.id ? {...i, qty:i.qty+1} : i) : [...prev, {...p, qty:1}];
+      });
+      const setQty = (id, q) => q <= 0
+        ? setCart(p => p.filter(i => i.id!==id))
+        : setCart(p => p.map(i => i.id===id ? {...i, qty:q} : i));
+
+      const checkout = () => {
+        if (!canCheck) return;
+        const tx = { id:uid(), date:new Date().toISOString(), items:cart.map(i=>({name:i.name,price:i.price,qty:i.qty,emoji:i.emoji})), total, payment:payNum, change };
+        onCheckout(tx);
+        setDone(tx); setCart([]); setPayment("");
+      };
+
+      if (done) return (
+        <div style={{ ...card({ textAlign:"center", padding:"60px 32px" }) }}>
+          <div style={{ fontSize:80, marginBottom:16 }}>✅</div>
+          <div style={{ fontSize:30, fontWeight:900, color:C.green, marginBottom:16 }}>Transaksi Berhasil!</div>
+          <div style={{ fontSize:18, color:C.gray, marginBottom:6 }}>Total Belanja: <b style={{color:C.text}}>{IDR(done.total)}</b></div>
+          <div style={{ fontSize:18, color:C.gray, marginBottom:32 }}>Uang Diterima: <b style={{color:C.text}}>{IDR(done.payment)}</b></div>
+          <div style={{ background:C.amberMid, borderRadius:20, padding:"26px 60px", display:"inline-block", marginBottom:44, border:`2px solid ${C.amber}` }}>
+            <div style={{ fontSize:14, fontWeight:800, color:C.amberDark, marginBottom:6, letterSpacing:1 }}>💵 KEMBALIAN</div>
+            <div style={{ fontSize:56, fontWeight:900, color:C.amberDark }}>{IDR(done.change)}</div>
+          </div>
+          <br />
+          <button onClick={() => setDone(null)} style={{ ...btn(C.amber), fontSize:20, padding:"18px 56px" }}>🛒 Transaksi Baru</button>
+        </div>
+      );
+
+      return (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", gap:20, alignItems:"start" }}>
+
+          {/* Product grid */}
+          <div>
+            <div style={{ fontWeight:800, fontSize:17, marginBottom:14, color:C.gray }}>Ketuk produk untuk menambahkan ke keranjang</div>
+            {products.length === 0 ? (
+              <div style={{ ...card({ textAlign:"center", padding:"60px 24px" }), color:C.muted }}>
+                <div style={{ fontSize:56, marginBottom:12 }}>📦</div>
+                <div style={{ fontSize:17, fontWeight:700, marginBottom:6 }}>Belum ada produk</div>
+                <div style={{ fontSize:15 }}>Tambahkan produk di menu <b style={{color:C.amberDark}}>Produk</b> terlebih dahulu</div>
+              </div>
+            ) : (
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(130px, 1fr))", gap:10 }}>
+                {products.map(p => {
+                  const inCart = cart.find(i => i.id===p.id);
+                  return (
+                    <button key={p.id} onClick={() => addToCart(p)} style={{
+                      background: inCart ? C.amberMid : C.white,
+                      border:     `2px solid ${inCart ? C.amber : C.border}`,
+                      borderRadius:14, padding:"16px 8px", minHeight:126,
+                      display:"flex", flexDirection:"column", alignItems:"center", gap:6,
+                      cursor:"pointer", position:"relative",
+                    }}>
+                      {inCart && (
+                        <div style={{ position:"absolute", top:6, right:6, background:C.amber, color:"#fff", fontSize:12, fontWeight:900, borderRadius:20, padding:"2px 8px" }}>×{inCart.qty}</div>
+                      )}
+                      <span style={{ fontSize:40 }}>{p.emoji||"🛍️"}</span>
+                      <div style={{ fontWeight:800, fontSize:13, color:C.text, lineHeight:1.3, textAlign:"center" }}>{p.name}</div>
+                      <div style={{ fontWeight:900, fontSize:13, color:C.amberDark }}>{IDR(p.price)}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Cart */}
+          <div style={{ ...card({ position:"sticky", top:76 }) }}>
+            <div style={{ fontWeight:800, fontSize:18, marginBottom:14 }}>🧾 Keranjang</div>
+            {cart.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"28px 0", color:C.muted, fontSize:15, borderBottom:`1px solid ${C.border}`, marginBottom:14 }}>Belum ada item dipilih</div>
+            ) : (
+              <div style={{ maxHeight:260, overflowY:"auto", marginBottom:8 }}>
+                {cart.map(item => (
+                  <div key={item.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 0", borderBottom:`1px solid ${C.border}` }}>
+                    <span style={{ fontSize:24, flexShrink:0 }}>{item.emoji||"🛍️"}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:700, fontSize:13, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.name}</div>
+                      <div style={{ fontSize:12, color:C.amberDark, fontWeight:800 }}>{IDR(item.price*item.qty)}</div>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:4, flexShrink:0 }}>
+                      <button onClick={() => setQty(item.id, item.qty-1)} style={{ width:34, height:34, borderRadius:8, border:`1.5px solid ${C.border}`, background:C.white, fontSize:20, fontWeight:900, cursor:"pointer", color:C.text }}>−</button>
+                      <span style={{ fontWeight:900, minWidth:22, textAlign:"center", fontSize:15 }}>{item.qty}</span>
+                      <button onClick={() => setQty(item.id, item.qty+1)} style={{ width:34, height:34, borderRadius:8, border:`1.5px solid ${C.amber}`, background:C.amber, fontSize:20, fontWeight:900, cursor:"pointer", color:"#fff" }}>+</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ paddingTop: cart.length>0 ? 14 : 0 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", fontWeight:900, fontSize:22, marginBottom:16 }}>
+                <span>Total</span>
+                <span style={{ color:C.amberDark }}>{IDR(total)}</span>
+              </div>
+              <label style={{ fontWeight:700, fontSize:14, display:"block", marginBottom:7, color:C.gray }}>💵 Uang yang Diterima (Rp)</label>
+              <input type="number" value={payment} onChange={e=>setPayment(e.target.value)} placeholder="Masukkan jumlah uang..."
+                style={{ ...inp({ fontSize:18, fontWeight:800, marginBottom:12 }) }} />
+              {payment && (
+                <div style={{ background:change>=0?C.greenLight:C.redLight, border:`2px solid ${change>=0?"#6EE7B7":"#FCA5A5"}`, borderRadius:12, padding:14, marginBottom:14, textAlign:"center" }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:change>=0?C.green:C.red, marginBottom:3 }}>{change>=0?"KEMBALIAN":"⚠️ UANG KURANG"}</div>
+                  <div style={{ fontSize:34, fontWeight:900, color:change>=0?C.green:C.red }}>{IDR(Math.abs(change))}</div>
+                </div>
+              )}
+              <button onClick={checkout} disabled={!canCheck}
+                style={{ ...btn(C.green), width:"100%", fontSize:17, padding:16, opacity:canCheck?1:0.38, marginBottom:8 }}>
+                ✅ Selesaikan Transaksi
+              </button>
+              {cart.length > 0 && (
+                <button onClick={() => { setCart([]); setPayment(""); }}
+                  style={{ width:"100%", fontSize:14, padding:10, borderRadius:12, border:`1.5px solid #FECACA`, background:C.white, color:C.red, fontFamily:"inherit", fontWeight:700, cursor:"pointer" }}>
+                  🗑️ Kosongkan Keranjang
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // PRODUK
+    // ══════════════════════════════════════════════════════════════════════════
+    const EMOJIS = ["🛍️","🍎","🍌","🍊","🥤","🍕","🍜","☕","🍰","🧃","🥛","🍞","🥩","🐟","🧴","🧹","📦","🎁","🧅","🌶️","🍫","🥚","🫙","🥫","🍿","🍦","🧁","🥐","🍋","🫐"];
+
+    function ProdukSection({ products, onSave }) {
+      const [name,  setName]  = useState("");
+      const [price, setPrice] = useState("");
+      const [emoji, setEmoji] = useState("🛍️");
+      const [editing, setEditing]           = useState(null);
+      const [err, setErr]                   = useState("");
+      const [search, setSearch]             = useState("");
+      const [deleteTarget, setDeleteTarget] = useState(null);
+
+      const reset = () => { setName(""); setPrice(""); setEmoji("🛍️"); setEditing(null); setErr(""); };
+
+      const doSave = () => {
+        if (!name.trim())             { setErr("Nama produk harus diisi"); return; }
+        const p = parseInt(price);
+        if (!p || p <= 0)             { setErr("Harga harus berupa angka yang benar"); return; }
+        const item = { id:editing||uid(), name:name.trim(), price:p, emoji };
+        onSave(editing ? products.map(x => x.id===editing ? item : x) : [...products, item]);
+        reset();
+      };
+
+      const doEdit   = p => { setEditing(p.id); setName(p.name); setPrice(String(p.price)); setEmoji(p.emoji||"🛍️"); window.scrollTo({top:0,behavior:"smooth"}); };
+      const doDelete = id => { onSave(products.filter(p => p.id!==id)); setDeleteTarget(null); };
+
+      const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+
+      return (
+        <div>
+          {deleteTarget && (
+            <ConfirmModal
+              message={`Yakin ingin menghapus produk "${deleteTarget.name}"? Data tidak bisa dikembalikan.`}
+              onConfirm={() => doDelete(deleteTarget.id)}
+              onCancel={() => setDeleteTarget(null)}
+            />
+          )}
+
+          {/* Form */}
+          <div style={{ ...card({ marginBottom:24, border:editing?`2px solid ${C.amber}`:`1px solid ${C.border}` }) }}>
+            <div style={{ fontWeight:800, fontSize:20, marginBottom:20, color:editing?C.amberDark:C.text }}>
+              {editing ? "✏️ Edit Produk" : "➕ Tambah Produk Baru"}
+            </div>
+            <div style={{ marginBottom:18 }}>
+              <div style={{ fontWeight:700, fontSize:15, marginBottom:9, color:C.gray }}>Pilih Ikon Produk</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {EMOJIS.map(e => (
+                  <button key={e} onClick={() => setEmoji(e)} style={{
+                    width:48, height:48, borderRadius:10, fontSize:22, cursor:"pointer",
+                    border:`2px solid ${emoji===e?C.amber:C.border}`,
+                    background:emoji===e?C.amberMid:C.white,
+                  }}>{e}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14 }}>
+              <div>
+                <label style={{ fontWeight:700, fontSize:15, display:"block", marginBottom:7, color:C.gray }}>Nama Produk</label>
+                <input value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doSave()}
+                  placeholder="Contoh: Es Teh Manis" style={inp()} />
+              </div>
+              <div>
+                <label style={{ fontWeight:700, fontSize:15, display:"block", marginBottom:7, color:C.gray }}>Harga Jual (Rp)</label>
+                <input value={price} onChange={e=>setPrice(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doSave()}
+                  type="number" placeholder="Contoh: 5000" style={inp()} />
+              </div>
+            </div>
+            {err && <div style={{ color:C.red, fontSize:14, fontWeight:700, marginBottom:12 }}>⚠️ {err}</div>}
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={doSave} style={{ ...btn(C.amber), flex:1, padding:15, fontSize:16 }}>
+                {editing ? "💾 Simpan Perubahan" : "➕ Tambah Produk"}
+              </button>
+              {editing && (
+                <button onClick={reset} style={{ padding:"15px 20px", fontSize:16, borderRadius:12, border:`1.5px solid ${C.border}`, background:C.surface, color:C.text, fontFamily:"inherit", fontWeight:700, cursor:"pointer" }}>Batal</button>
+              )}
+            </div>
+          </div>
+
+          {/* List */}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14, flexWrap:"wrap", gap:10 }}>
+            <div style={{ fontWeight:800, fontSize:18 }}>📦 Daftar Produk ({products.length})</div>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Cari produk..."
+              style={{ ...inp({ width:"auto", fontSize:15, padding:"10px 16px" }) }} />
+          </div>
+
+          {filtered.length === 0 ? (
+            <div style={{ ...card({ textAlign:"center", padding:48 }), color:C.muted }}>
+              {products.length===0 ? "Belum ada produk. Silakan tambah produk di atas." : "Produk tidak ditemukan."}
+            </div>
+          ) : (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(185px, 1fr))", gap:12 }}>
+              {filtered.map(p => (
+                <div key={p.id} style={card({ padding:16 })}>
+                  <div style={{ fontSize:44, marginBottom:8 }}>{p.emoji||"🛍️"}</div>
+                  <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }}>{p.name}</div>
+                  <div style={{ fontWeight:900, color:C.amberDark, fontSize:17, marginBottom:14 }}>{IDR(p.price)}</div>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={() => doEdit(p)}          style={{ ...btn(C.amber), flex:1, padding:11, fontSize:14 }}>✏️ Edit</button>
+                    <button onClick={() => setDeleteTarget(p)} style={{ ...btn(C.red),   flex:1, padding:11, fontSize:14 }}>🗑️ Hapus</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // LAPORAN
+    // ══════════════════════════════════════════════════════════════════════════
+    function LaporanSection({ transactions, expenses, manualIncome }) {
+      const [period, setPeriod] = useState("bulan");
+
+      const getStart = () => {
+        const n = new Date();
+        if (period==="minggu") return new Date(n.getTime()-7*86400000);
+        if (period==="bulan")  return new Date(n.getFullYear(), n.getMonth(), 1);
+        if (period==="3bulan") return new Date(n.getFullYear(), n.getMonth()-2, 1);
+        if (period==="6bulan") return new Date(n.getFullYear(), n.getMonth()-5, 1);
+        return new Date(n.getFullYear(), 0, 1);
+      };
+
+      const start     = getStart();
+      const fTx       = transactions.filter(t  => new Date(t.date)  >= start);
+      const fExp      = expenses.filter(e      => new Date(e.date)  >= start);
+      const fInc      = manualIncome.filter(m  => new Date(m.date)  >= start);
+      const salesInc  = fTx.reduce((s,t) => s+t.total,    0);
+      const extraInc  = fInc.reduce((s,m) => s+m.amount,  0);
+      const grossInc  = salesInc + extraInc;
+      const totalExp  = fExp.reduce((s,e) => s+e.amount,  0);
+      const netInc    = grossInc - totalExp;
+      const avgTx     = fTx.length ? Math.round(salesInc/fTx.length) : 0;
+
+      const chartData = (() => {
+        const g = {};
+        const key = d => {
+          if (period==="minggu") return d.toLocaleDateString("id-ID", { weekday:"short", day:"numeric" });
+          if (period==="bulan")  return `Tgl ${d.getDate()}`;
+          return d.toLocaleDateString("id-ID", { month:"short", year:"2-digit" });
+        };
+        [...fTx.map(t=>({date:t.date,amt:t.total,typ:"i"})),
+         ...fInc.map(m=>({date:m.date,amt:m.amount,typ:"i"})),
+         ...fExp.map(e=>({date:e.date,amt:e.amount,typ:"e"}))
+        ].forEach(({date,amt,typ}) => {
+          const k = key(new Date(date));
+          if (!g[k]) g[k] = { name:k, Pendapatan:0, Pengeluaran:0 };
+          g[k][typ==="i"?"Pendapatan":"Pengeluaran"] += amt;
+        });
+        return Object.values(g);
+      })();
+
+      const PERIODS = [
+        { id:"minggu", label:"7 Hari" },
+        { id:"bulan",  label:"Bulan Ini" },
+        { id:"3bulan", label:"3 Bulan" },
+        { id:"6bulan", label:"6 Bulan" },
+        { id:"tahun",  label:"Setahun" },
+      ];
+
+      return (
+        <div>
+          <div style={{ display:"flex", gap:8, marginBottom:24, flexWrap:"wrap" }}>
+            {PERIODS.map(p => (
+              <button key={p.id} onClick={() => setPeriod(p.id)} style={{
+                padding:"11px 22px", borderRadius:24, fontFamily:"inherit",
+                border:`2px solid ${period===p.id?C.amber:C.border}`,
+                background:period===p.id?C.amber:C.white,
+                color:period===p.id?"#fff":C.text,
+                fontWeight:700, fontSize:15, cursor:"pointer",
+              }}>{p.label}</button>
+            ))}
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:14, marginBottom:20 }}>
+            {[
+              { label:"💰 Laba Kotor",       sub:"Total pendapatan semua sumber",    val:grossInc, color:C.amber,                   bg:C.amberMid   },
+              { label:"💸 Total Pengeluaran", sub:"Semua biaya operasional",          val:totalExp, color:C.red,                     bg:C.redLight   },
+              { label:"📈 Laba Bersih",       sub:"Pendapatan dikurangi pengeluaran", val:netInc,   color:netInc>=0?C.green:C.red,   bg:netInc>=0?C.greenLight:C.redLight },
+            ].map((s,i) => (
+              <div key={i} style={{ background:s.bg, borderRadius:16, padding:"18px 16px", borderLeft:`4px solid ${s.color}` }}>
+                <div style={{ fontSize:14, fontWeight:800, color:s.color, marginBottom:4 }}>{s.label}</div>
+                <div style={{ fontSize:12, color:C.gray, marginBottom:10 }}>{s.sub}</div>
+                <div style={{ fontSize:20, fontWeight:900, color:s.color }}>{IDR(s.val)}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:14, marginBottom:24 }}>
+            {[
+              { label:"🧾 Jumlah Transaksi",   val:`${fTx.length} transaksi`, color:C.text        },
+              { label:"📊 Rata-rata / Transaksi", val:IDR(avgTx),            color:C.amberDark    },
+              { label:"💰 Dari Penjualan Toko",  val:IDR(salesInc),          color:C.green        },
+            ].map((s,i) => (
+              <div key={i} style={card()}>
+                <div style={{ fontSize:13, fontWeight:700, color:C.gray, marginBottom:6 }}>{s.label}</div>
+                <div style={{ fontSize:19, fontWeight:900, color:s.color }}>{s.val}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={card()}>
+            <div style={{ fontWeight:800, fontSize:18, marginBottom:20 }}>📊 Grafik Pendapatan & Pengeluaran</div>
+            {chartData.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={chartData} margin={{ top:5, right:10, left:10, bottom:5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontFamily:"Nunito", fontSize:11, fill:C.gray }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontFamily:"Nunito", fontSize:11, fill:C.gray }} tickFormatter={v=>`${Math.round(v/1000)}rb`} axisLine={false} tickLine={false} />
+                    <Tooltip formatter={(v,n) => [IDR(v), n]} contentStyle={{ fontFamily:"Nunito", borderRadius:12, border:"none", boxShadow:"0 4px 20px rgba(0,0,0,0.12)", padding:"10px 16px" }} />
+                    <Bar dataKey="Pendapatan" fill={C.amber} radius={[6,6,0,0]} />
+                    <Bar dataKey="Pengeluaran" fill={C.red} radius={[6,6,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div style={{ display:"flex", gap:24, justifyContent:"center", marginTop:12 }}>
+                  {[{c:C.amber,l:"Pendapatan"},{c:C.red,l:"Pengeluaran"}].map(({c,l})=>(
+                    <div key={l} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <div style={{ width:14, height:14, borderRadius:4, background:c }} />
+                      <span style={{ fontSize:14, fontWeight:700, color:C.gray }}>{l}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign:"center", padding:48, color:C.muted }}>
+                <div style={{ fontSize:44, marginBottom:12 }}>📊</div>
+                <div style={{ fontSize:16, fontWeight:700 }}>Belum ada data untuk periode ini</div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // PEMBUKUAN
+    // ══════════════════════════════════════════════════════════════════════════
+    function PembukuanSection({ transactions, expenses, manualIncome, onAddExpense, onAddIncome }) {
+      const [mode,   setMode]   = useState(null);
+      const [desc,   setDesc]   = useState("");
+      const [amount, setAmount] = useState("");
+      const [date,   setDate]   = useState(todayISO());
+      const [filter, setFilter] = useState("semua");
+
+      const reset  = () => { setDesc(""); setAmount(""); setDate(todayISO()); };
+      const submit = () => {
+        if (!desc.trim() || !parseInt(amount)) return;
+        const entry = { id:uid(), date:new Date(date+"T12:00:00").toISOString(), description:desc.trim(), amount:parseInt(amount) };
+        if (mode==="expense") onAddExpense(entry); else onAddIncome(entry);
+        reset(); setMode(null);
+      };
+
+      const totalSales  = transactions.reduce((s,t) => s+t.total,   0);
+      const totalMInc   = manualIncome.reduce((s,m) => s+m.amount,  0);
+      const totalInc    = totalSales + totalMInc;
+      const totalExp    = expenses.reduce((s,e) => s+e.amount,       0);
+      const balance     = totalInc - totalExp;
+
+      const allEntries = [
+        ...transactions.map(t => ({
+          id:t.id, date:t.date, type:"income",
+          desc:`🛒 Penjualan — ${t.items.slice(0,2).map(i=>`${i.name} ×${i.qty}`).join(", ")}${t.items.length>2?` +${t.items.length-2} lainnya`:""}`,
+          amount:t.total, source:"kasir",
+        })),
+        ...manualIncome.map(m => ({ id:m.id, date:m.date, type:"income",  desc:m.description, amount:m.amount, source:"manual" })),
+        ...expenses.map(e     => ({ id:e.id, date:e.date, type:"expense", desc:e.description, amount:e.amount, source:"manual" })),
+      ].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+      const filtered = allEntries.filter(e => filter==="semua"?true:filter==="income"?e.type==="income":e.type==="expense");
+
+      return (
+        <div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:14, marginBottom:20 }}>
+            {[
+              { label:"💰 Total Pendapatan", val:totalInc, color:C.green,                      bg:C.greenLight },
+              { label:"💸 Total Pengeluaran",val:totalExp, color:C.red,                        bg:C.redLight   },
+              { label:"🏦 Saldo Bersih",     val:balance,  color:balance>=0?C.amberDark:C.red, bg:balance>=0?C.amberMid:C.redLight },
+            ].map((s,i) => (
+              <div key={i} style={{ background:s.bg, borderRadius:16, padding:18, borderLeft:`4px solid ${s.color}` }}>
+                <div style={{ fontSize:13, fontWeight:700, color:C.gray, marginBottom:8 }}>{s.label}</div>
+                <div style={{ fontSize:20, fontWeight:900, color:s.color }}>{IDR(s.val)}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:20 }}>
+            <div style={card()}>
+              <div style={{ fontSize:13, fontWeight:700, color:C.gray, marginBottom:6 }}>🛒 Dari Penjualan Toko</div>
+              <div style={{ fontSize:19, fontWeight:900, color:C.green }}>{IDR(totalSales)}</div>
+            </div>
+            <div style={card()}>
+              <div style={{ fontSize:13, fontWeight:700, color:C.gray, marginBottom:6 }}>📝 Pendapatan Manual</div>
+              <div style={{ fontSize:19, fontWeight:900, color:C.green }}>{IDR(totalMInc)}</div>
+            </div>
+          </div>
+
+          {!mode && (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
+              <button onClick={() => setMode("expense")} style={{ ...btn(C.red),   padding:17, fontSize:17 }}>💸 Catat Pengeluaran</button>
+              <button onClick={() => setMode("income")}  style={{ ...btn(C.green), padding:17, fontSize:17 }}>💰 Pendapatan Manual</button>
+            </div>
+          )}
+
+          {mode && (
+            <div style={{ ...card({ marginBottom:20 }), border:`2px solid ${mode==="expense"?"#FCA5A5":"#6EE7B7"}`, background:mode==="expense"?C.redLight:C.greenLight }}>
+              <div style={{ fontWeight:800, fontSize:18, marginBottom:18, color:mode==="expense"?C.red:C.green }}>
+                {mode==="expense" ? "💸 Catat Pengeluaran Baru" : "💰 Catat Pendapatan Manual"}
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+                <div>
+                  <label style={{ fontWeight:700, fontSize:14, display:"block", marginBottom:6, color:C.gray }}>Keterangan</label>
+                  <input value={desc} onChange={e=>setDesc(e.target.value)} placeholder={mode==="expense"?"Contoh: Beli stok barang":"Contoh: Uang titipan warung"} style={inp()} />
+                </div>
+                <div>
+                  <label style={{ fontWeight:700, fontSize:14, display:"block", marginBottom:6, color:C.gray }}>Jumlah (Rp)</label>
+                  <input value={amount} onChange={e=>setAmount(e.target.value)} type="number" placeholder="0" style={inp()} />
+                </div>
+              </div>
+              <div style={{ marginBottom:16 }}>
+                <label style={{ fontWeight:700, fontSize:14, display:"block", marginBottom:6, color:C.gray }}>Tanggal</label>
+                <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{ ...inp({ width:"auto" }) }} />
+              </div>
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={submit} style={{ ...btn(mode==="expense"?C.red:C.green), padding:"14px 28px", fontSize:15 }}>💾 Simpan</button>
+                <button onClick={() => { setMode(null); reset(); }} style={{ padding:"14px 20px", fontSize:15, borderRadius:12, border:`1.5px solid ${C.border}`, background:C.surface, color:C.text, fontFamily:"inherit", fontWeight:700, cursor:"pointer" }}>Batal</button>
+              </div>
+            </div>
+          )}
+
+          <div style={card()}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, flexWrap:"wrap", gap:10 }}>
+              <div style={{ fontWeight:800, fontSize:18 }}>📒 Riwayat Pembukuan</div>
+              <div style={{ display:"flex", gap:6 }}>
+                {[{id:"semua",l:"Semua"},{id:"income",l:"Pendapatan"},{id:"expense",l:"Pengeluaran"}].map(f => (
+                  <button key={f.id} onClick={() => setFilter(f.id)} style={{
+                    padding:"9px 16px", borderRadius:20, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
+                    border:`1.5px solid ${filter===f.id?C.amber:C.border}`,
+                    background:filter===f.id?C.amber:C.white, color:filter===f.id?"#fff":C.text,
+                  }}>{f.l}</button>
+                ))}
+              </div>
+            </div>
+            {filtered.length === 0 ? (
+              <div style={{ textAlign:"center", padding:40, color:C.muted }}>
+                <div style={{ fontSize:40, marginBottom:10 }}>📭</div>
+                <div style={{ fontWeight:700 }}>Belum ada catatan</div>
+              </div>
+            ) : filtered.map(e => (
+              <div key={e.id} style={{ display:"flex", alignItems:"center", padding:"14px 0", borderBottom:`1px solid ${C.border}`, gap:12 }}>
+                <div style={{ width:46, height:46, borderRadius:12, flexShrink:0, background:e.type==="income"?C.greenLight:C.redLight, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>
+                  {e.type==="income"?(e.source==="kasir"?"🛒":"💰"):"💸"}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:700, fontSize:14, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.desc}</div>
+                  <div style={{ fontSize:12, color:C.muted, marginTop:3 }}>{dateStr(e.date)} · {e.source==="kasir"?"Otomatis dari Kasir":"Input Manual"}</div>
+                </div>
+                <div style={{ fontWeight:900, fontSize:16, color:e.type==="income"?C.green:C.red, flexShrink:0 }}>
+                  {e.type==="income"?"+":"−"}{IDR(e.amount)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Mount ─────────────────────────────────────────────────────────────────
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
