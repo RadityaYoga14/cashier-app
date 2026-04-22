@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kasir Digital">
+<meta name="theme-color" content="#D97706">
+<title>Kasir Digital</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#FAFAF9;min-height:100vh;color:#111827}
+button{font-family:inherit;cursor:pointer;border:none;transition:transform .1s,opacity .15s}
+button:active{transform:scale(.94)!important}
+input,select,textarea{font-family:inherit;font-size:16px}
+input:focus,select:focus{outline:none;border-color:#D97706!important;box-shadow:0 0 0 3px rgba(217,119,6,.2)!important}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}
+
+/* Layout */
+#app{min-height:100vh}
+.header{background:linear-gradient(135deg,#D97706,#92400E);padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 16px rgba(146,64,14,.35)}
+.header-icon{font-size:36px;line-height:1}
+.header-title{color:#fff;font-weight:900;font-size:20px;line-height:1.2}
+.header-sub{color:#FDE68A;font-size:11px;font-weight:700;margin-top:2px}
+.header-btn{margin-left:auto;background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700}
+
+/* Nav */
+.nav{display:flex;background:#fff;border-bottom:2px solid #E5E7EB;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.nav-btn{flex:1;padding:11px 4px;background:#fff;border:none;border-bottom:3px solid transparent;color:#6B7280;font-size:13px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:2px}
+.nav-btn.active{background:#FEF3C7;border-bottom-color:#D97706;color:#92400E;font-weight:900}
+.nav-btn span{font-size:20px}
+
+/* Content */
+.content{padding:18px 14px;max-width:960px;margin:0 auto}
+
+/* Cards */
+.card{background:#fff;border-radius:16px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);border:1px solid #E5E7EB;margin-bottom:14px}
+.card.highlight{border:2px solid #D97706}
+
+/* Inputs */
+.inp{width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid #E5E7EB;font-size:16px;background:#fff;color:#111827}
+.inp-sm{padding:9px 13px;font-size:14px}
+
+/* Buttons */
+.btn{padding:13px 18px;border-radius:12px;font-weight:700;font-size:15px;color:#fff}
+.btn-amber{background:#D97706}
+.btn-green{background:#059669}
+.btn-red{background:#DC2626}
+.btn-gray{background:#fff;color:#111827;border:1.5px solid #E5E7EB}
+.btn-full{width:100%;display:block;text-align:center}
+.btn:disabled{opacity:.38;cursor:not-allowed}
+
+/* Grid helpers */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.flex{display:flex;align-items:center}
+.gap-8{gap:8px}
+.gap-12{gap:12px}
+
+/* Stat cards */
+.stat{border-radius:14px;padding:16px;border-left:4px solid}
+.stat-label{font-size:13px;font-weight:700;margin-bottom:4px}
+.stat-val{font-size:20px;font-weight:900}
+.stat-sub{font-size:11px;color:#6B7280;margin-bottom:8px}
+
+/* Kasir product grid */
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.prod-btn{background:#fff;border:2px solid #E5E7EB;border-radius:13px;padding:14px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative;min-height:110px;width:100%}
+.prod-btn.in-cart{background:#FEF3C7;border-color:#D97706}
+.prod-btn-qty{position:absolute;top:5px;right:5px;background:#D97706;color:#fff;font-size:11px;font-weight:900;border-radius:20px;padding:1px 7px}
+.prod-btn-icon{font-size:36px;line-height:1}
+.prod-btn-name{font-weight:800;font-size:12px;color:#111827;text-align:center;line-height:1.3}
+.prod-btn-price{font-weight:900;font-size:12px;color:#92400E}
+
+/* Cart */
+.cart-item{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #E5E7EB}
+.qty-btn{width:32px;height:32px;border-radius:8px;font-size:18px;font-weight:900;display:flex;align-items:center;justify-content:center}
+
+/* Modal overlay */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:20px;padding:26px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.28)}
+.modal-title{font-weight:900;font-size:19px;margin-bottom:18px}
+
+/* Ledger rows */
+.ledger-row{display:flex;align-items:center;padding:13px 0;border-bottom:1px solid #E5E7EB;gap:10px}
+.ledger-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.ledger-desc{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ledger-date{font-size:11px;color:#9CA3AF;margin-top:2px}
+.ledger-amt{font-weight:900;font-size:15px;flex-shrink:0;margin-left:auto}
+
+/* Emoji picker */
+.emoji-grid{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+.emoji-btn{width:44px;height:44px;border-radius:9px;border:2px solid #E5E7EB;background:#fff;font-size:20px;cursor:pointer}
+.emoji-btn.sel{border-color:#D97706;background:#FEF3C7}
+
+/* Chart bars */
+.bar-chart{display:flex;align-items:flex-end;gap:4px;height:160px;padding:0 4px}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.bar-label{font-size:9px;color:#9CA3AF;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
+.bar-pair{width:100%;display:flex;gap:2px;align-items:flex-end}
+.bar{border-radius:4px 4px 0 0;min-height:4px;transition:height .3s}
+
+/* Filter pills */
+.pill{padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;border:1.5px solid #E5E7EB;background:#fff;color:#111827}
+.pill.active{background:#D97706;border-color:#D97706;color:#fff}
+
+/* Period pills */
+.period-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+
+/* Success screen */
+.success-screen{text-align:center;padding:52px 24px}
+
+/* Misc */
+.empty{text-align:center;padding:48px 20px;color:#9CA3AF}
+.empty-icon{font-size:48px;margin-bottom:10px}
+.section-title{font-weight:800;font-size:17px;margin-bottom:14px}
+.label{font-weight:700;font-size:14px;color:#6B7280;display:block;margin-bottom:6px}
+.error-msg{color:#DC2626;font-size:13px;font-weight:700;margin-bottom:10px}
+.change-box{border-radius:12px;padding:14px;text-align:center;margin-bottom:12px}
+.change-label{font-size:12px;font-weight:800;margin-bottom:3px}
+.change-val{font-size:32px;font-weight:900}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ── Storage ────────────────────────────────────────────────────────────────────
+const db = {
+  get:(k,d)=>{ try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d} },
+  set:(k,v)=>{ try{localStorage.setItem(k,JSON.stringify(v))}catch{} }
+};
+
+// ── State ──────────────────────────────────────────────────────────────────────
+const state = {
+  tab: 'kasir',
+  products:      db.get('ksr-products',[]),
+  transactions:  db.get('ksr-tx',[]),
+  expenses:      db.get('ksr-exp',[]),
+  manualIncome:  db.get('ksr-minc',[]),
+  storeName:     db.get('ksr-name','Warung Gentong'),
+  // kasir
+  cart: [], payment: '', doneTx: null,
+  // produk form
+  pName:'', pPrice:'', pEmoji:'🛍️', pEditing:null, pErr:'', pSearch:'',
+  deleteTarget: null,
+  // laporan
+  period: 'bulan',
+  // pembukuan
+  bMode: null, bDesc:'', bAmount:'', bDate: today(), bFilter:'semua',
+  // modal
+  renameOpen: false, renameVal: '',
+};
+
+function today(){ return new Date().toISOString().split('T')[0] }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7) }
+function IDR(n){ return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(n??0) }
+function dateStr(d){ return new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) }
+function save(key,val){ db.set(key,val) }
+
+// ── Render engine ──────────────────────────────────────────────────────────────
+function render(){
+  document.getElementById('app').innerHTML = buildApp();
+}
+
+// ── Build App ──────────────────────────────────────────────────────────────────
+function buildApp(){
+  return `
+    ${state.renameOpen ? buildRenameModal() : ''}
+    ${state.deleteTarget ? buildDeleteModal() : ''}
+    <div class="header">
+      <div class="header-icon">🏪</div>
+      <div>
+        <div class="header-title">${esc(state.storeName)}</div>
+        <div class="header-sub">Sistem Kasir Digital</div>
+      </div>
+      <button class="header-btn" data-action="openRename">✏️ Ganti Nama</button>
+    </div>
+    <div class="nav">
+      ${['kasir','produk','laporan','pembukuan'].map((t,i)=>{
+        const icons=['🛒','📦','📊','📒'];
+        const labels=['Kasir','Produk','Laporan','Pembukuan'];
+        return `<button class="nav-btn ${state.tab===t?'active':''}" data-action="tab" data-tab="${t}">
+          <span>${icons[i]}</span>${labels[i]}</button>`;
+      }).join('')}
+    </div>
+    <div class="content">
+      ${state.tab==='kasir'     ? buildKasir()     : ''}
+      ${state.tab==='produk'    ? buildProduk()    : ''}
+      ${state.tab==='laporan'   ? buildLaporan()   : ''}
+      ${state.tab==='pembukuan' ? buildPembukuan() : ''}
+    </div>`;
+}
+
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+// ── Rename Modal ───────────────────────────────────────────────────────────────
+function buildRenameModal(){
+  return `<div class="overlay" data-action="closeRename">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-title">✏️ Ganti Nama Toko</div>
+      <input class="inp" style="margin-bottom:14px" id="renameInput" value="${esc(state.renameVal)}" placeholder="Masukkan nama toko...">
+      <div class="grid-2">
+        <button class="btn btn-amber" data-action="saveRename">💾 Simpan</button>
+        <button class="btn btn-gray" data-action="closeRename">Batal</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildDeleteModal(){
+  return `<div class="overlay">
+    <div class="modal">
+      <div class="modal-title">⚠️ Konfirmasi Hapus</div>
+      <p style="color:#6B7280;margin-bottom:20px;line-height:1.6">Yakin ingin menghapus produk "<b>${esc(state.deleteTarget.name)}</b>"? Data tidak bisa dikembalikan.</p>
+      <div class="grid-2">
+        <button class="btn btn-red" data-action="confirmDelete">Ya, Hapus</button>
+        <button class="btn btn-gray" data-action="cancelDelete">Batal</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KASIR
+// ══════════════════════════════════════════════════════════════════════════════
+function buildKasir(){
+  if(state.doneTx){ return buildDoneScreen() }
+  const total  = state.cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const payNum = parseInt(state.payment)||0;
+  const change = payNum - total;
+  const canPay = state.cart.length>0 && payNum>=total && payNum>0;
+
+  const prods = state.products.length===0
+    ? `<div class="empty"><div class="empty-icon">📦</div><div style="font-weight:700;margin-bottom:6px">Belum ada produk</div><div style="font-size:14px">Tambahkan produk di menu <b style="color:#92400E">Produk</b></div></div>`
+    : `<div class="prod-grid">${state.products.map(p=>{
+        const c = state.cart.find(i=>i.id===p.id);
+        return `<button class="prod-btn ${c?'in-cart':''}" data-action="addCart" data-id="${p.id}">
+          ${c?`<div class="prod-btn-qty">×${c.qty}</div>`:''}
+          <div class="prod-btn-icon">${p.emoji||'🛍️'}</div>
+          <div class="prod-btn-name">${esc(p.name)}</div>
+          <div class="prod-btn-price">${IDR(p.price)}</div>
+        </button>`;
+      }).join('')}</div>`;
+
+  const cartHtml = state.cart.length===0
+    ? `<div style="text-align:center;padding:20px 0;color:#9CA3AF;font-size:14px;border-bottom:1px solid #E5E7EB;margin-bottom:12px">Belum ada item dipilih</div>`
+    : `<div style="max-height:240px;overflow-y:auto;margin-bottom:8px">${state.cart.map(item=>`
+        <div class="cart-item">
+          <span style="font-size:22px;flex-shrink:0">${item.emoji||'🛍️'}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(item.name)}</div>
+            <div style="font-size:12px;color:#92400E;font-weight:800">${IDR(item.price*item.qty)}</div>
+          </div>
+          <div class="flex gap-8" style="flex-shrink:0">
+            <button class="qty-btn" style="border:1.5px solid #E5E7EB;background:#fff" data-action="qtyDec" data-id="${item.id}">−</button>
+            <span style="font-weight:900;min-width:20px;text-align:center">${item.qty}</span>
+            <button class="qty-btn" style="border:1.5px solid #D97706;background:#D97706;color:#fff" data-action="qtyInc" data-id="${item.id}">+</button>
+          </div>
+        </div>`).join('')}</div>`;
+
+  const changeHtml = state.payment
+    ? `<div class="change-box" style="background:${change>=0?'#ECFDF5':'#FEF2F2'};border:2px solid ${change>=0?'#6EE7B7':'#FCA5A5'}">
+        <div class="change-label" style="color:${change>=0?'#059669':'#DC2626'}">${change>=0?'KEMBALIAN':'⚠️ UANG KURANG'}</div>
+        <div class="change-val" style="color:${change>=0?'#059669':'#DC2626'}">${IDR(Math.abs(change))}</div>
+      </div>` : '';
+
+  return `
+    <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start">
+      <div>
+        <div style="font-weight:700;font-size:14px;color:#6B7280;margin-bottom:12px">Ketuk produk untuk menambahkan ke keranjang</div>
+        ${prods}
+      </div>
+      <div class="card" style="position:sticky;top:66px">
+        <div class="section-title" style="margin-bottom:12px">🧾 Keranjang</div>
+        ${cartHtml}
+        <div style="display:flex;justify-content:space-between;font-weight:900;font-size:20px;margin-bottom:14px">
+          <span>Total</span><span style="color:#92400E">${IDR(total)}</span>
+        </div>
+        <label class="label">💵 Uang Diterima (Rp)</label>
+        <input class="inp" type="number" id="paymentInput" value="${esc(state.payment)}" placeholder="Masukkan jumlah uang..." style="margin-bottom:12px;font-size:18px;font-weight:800">
+        ${changeHtml}
+        <button class="btn btn-green btn-full" data-action="checkout" ${canPay?'':'disabled'} style="margin-bottom:8px">✅ Selesaikan Transaksi</button>
+        ${state.cart.length>0?`<button class="btn btn-full" style="background:#fff;color:#DC2626;border:1.5px solid #FECACA" data-action="clearCart">🗑️ Kosongkan Keranjang</button>`:''}
+      </div>
+    </div>`;
+}
+
+function buildDoneScreen(){
+  const tx = state.doneTx;
+  return `<div class="card success-screen">
+    <div style="font-size:72px;margin-bottom:14px">✅</div>
+    <div style="font-size:26px;font-weight:900;color:#059669;margin-bottom:14px">Transaksi Berhasil!</div>
+    <div style="font-size:16px;color:#6B7280;margin-bottom:4px">Total Belanja: <b style="color:#111827">${IDR(tx.total)}</b></div>
+    <div style="font-size:16px;color:#6B7280;margin-bottom:28px">Uang Diterima: <b style="color:#111827">${IDR(tx.payment)}</b></div>
+    <div style="background:#FEF3C7;border-radius:18px;padding:22px 48px;display:inline-block;margin-bottom:36px;border:2px solid #D97706">
+      <div style="font-size:13px;font-weight:800;color:#92400E;margin-bottom:4px;letter-spacing:1px">💵 KEMBALIAN</div>
+      <div style="font-size:48px;font-weight:900;color:#92400E">${IDR(tx.change)}</div>
+    </div><br>
+    <button class="btn btn-amber" style="font-size:18px;padding:16px 48px" data-action="newTx">🛒 Transaksi Baru</button>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PRODUK
+// ══════════════════════════════════════════════════════════════════════════════
+const EMOJIS = ['🛍️','🍎','🍌','🍊','🥤','🍕','🍜','☕','🍰','🧃','🥛','🍞','🥩','🐟','🧴','🧹','📦','🎁','🧅','🌶️','🍫','🥚','🫙','🥫','🍿','🍦','🧁','🥐','🍋','🫐'];
+
+function buildProduk(){
+  const filtered = state.products.filter(p=>p.name.toLowerCase().includes(state.pSearch.toLowerCase()));
+  return `
+    <div class="card ${state.pEditing?'highlight':''}">
+      <div class="section-title" style="color:${state.pEditing?'#92400E':'#111827'}">${state.pEditing?'✏️ Edit Produk':'➕ Tambah Produk Baru'}</div>
+      <div style="margin-bottom:14px">
+        <div class="label" style="margin-bottom:8px">Pilih Ikon</div>
+        <div class="emoji-grid">${EMOJIS.map(e=>`<button class="emoji-btn ${state.pEmoji===e?'sel':''}" data-action="pickEmoji" data-emoji="${e}">${e}</button>`).join('')}</div>
+      </div>
+      <div class="grid-2" style="margin-bottom:12px">
+        <div>
+          <label class="label">Nama Produk</label>
+          <input class="inp" id="pName" value="${esc(state.pName)}" placeholder="Contoh: Es Teh Manis">
+        </div>
+        <div>
+          <label class="label">Harga Jual (Rp)</label>
+          <input class="inp" id="pPrice" type="number" value="${esc(state.pPrice)}" placeholder="Contoh: 5000">
+        </div>
+      </div>
+      ${state.pErr?`<div class="error-msg">⚠️ ${esc(state.pErr)}</div>`:''}
+      <div class="flex gap-8">
+        <button class="btn btn-amber" style="flex:1" data-action="saveProduk">${state.pEditing?'💾 Simpan Perubahan':'➕ Tambah Produk'}</button>
+        ${state.pEditing?`<button class="btn btn-gray" data-action="resetProduk">Batal</button>`:''}
+      </div>
+    </div>
+
+    <div class="flex" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:800;font-size:17px">📦 Produk (${state.products.length})</div>
+      <input class="inp inp-sm" style="width:auto" id="pSearch" value="${esc(state.pSearch)}" placeholder="🔍 Cari...">
+    </div>
+
+    ${filtered.length===0
+      ? `<div class="empty"><div class="empty-icon">📦</div>${state.products.length===0?'Belum ada produk. Tambahkan di atas.':'Produk tidak ditemukan.'}</div>`
+      : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
+          ${filtered.map(p=>`
+            <div class="card" style="padding:14px;margin-bottom:0">
+              <div style="font-size:40px;margin-bottom:6px">${p.emoji||'🛍️'}</div>
+              <div style="font-weight:800;font-size:15px;margin-bottom:3px">${esc(p.name)}</div>
+              <div style="font-weight:900;color:#92400E;font-size:15px;margin-bottom:12px">${IDR(p.price)}</div>
+              <div class="flex gap-8">
+                <button class="btn btn-amber" style="flex:1;padding:9px;font-size:13px" data-action="editProduk" data-id="${p.id}">✏️ Edit</button>
+                <button class="btn btn-red" style="flex:1;padding:9px;font-size:13px" data-action="deleteProduk" data-id="${p.id}">🗑️ Hapus</button>
+              </div>
+            </div>`).join('')}
+        </div>`}`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LAPORAN
+// ══════════════════════════════════════════════════════════════════════════════
+function getStart(period){
+  const n = new Date();
+  if(period==='minggu') return new Date(n.getTime()-7*86400000);
+  if(period==='bulan')  return new Date(n.getFullYear(),n.getMonth(),1);
+  if(period==='3bulan') return new Date(n.getFullYear(),n.getMonth()-2,1);
+  if(period==='6bulan') return new Date(n.getFullYear(),n.getMonth()-5,1);
+  return new Date(n.getFullYear(),0,1);
+}
+
+function buildLaporan(){
+  const start    = getStart(state.period);
+  const fTx      = state.transactions.filter(t=>new Date(t.date)>=start);
+  const fExp     = state.expenses.filter(e=>new Date(e.date)>=start);
+  const fInc     = state.manualIncome.filter(m=>new Date(m.date)>=start);
+  const salesInc = fTx.reduce((s,t)=>s+t.total,0);
+  const extraInc = fInc.reduce((s,m)=>s+m.amount,0);
+  const grossInc = salesInc+extraInc;
+  const totalExp = fExp.reduce((s,e)=>s+e.amount,0);
+  const netInc   = grossInc-totalExp;
+  const avgTx    = fTx.length ? Math.round(salesInc/fTx.length) : 0;
+
+  const PERIODS=[['minggu','7 Hari'],['bulan','Bulan Ini'],['3bulan','3 Bulan'],['6bulan','6 Bulan'],['tahun','Setahun']];
+
+  // Chart data
+  const g={};
+  const keyFn=d=>{
+    if(state.period==='minggu') return d.toLocaleDateString('id-ID',{weekday:'short'});
+    if(state.period==='bulan')  return d.getDate().toString();
+    return d.toLocaleDateString('id-ID',{month:'short'});
+  };
+  [...fTx.map(t=>({date:t.date,amt:t.total,typ:'i'})),
+   ...fInc.map(m=>({date:m.date,amt:m.amount,typ:'i'})),
+   ...fExp.map(e=>({date:e.date,amt:e.amount,typ:'e'}))
+  ].forEach(({date,amt,typ})=>{
+    const k=keyFn(new Date(date));
+    if(!g[k]) g[k]={name:k,inc:0,exp:0};
+    g[k][typ==='i'?'inc':'exp']+=amt;
+  });
+  const chartEntries=Object.values(g);
+  const maxVal = Math.max(...chartEntries.flatMap(e=>[e.inc,e.exp]),1);
+
+  const chartHtml = chartEntries.length===0
+    ? `<div class="empty" style="padding:32px"><div class="empty-icon">📊</div>Belum ada data</div>`
+    : `<div class="bar-chart">
+        ${chartEntries.map(e=>{
+          const incH=Math.max(Math.round((e.inc/maxVal)*140),e.inc>0?4:0);
+          const expH=Math.max(Math.round((e.exp/maxVal)*140),e.exp>0?4:0);
+          return `<div class="bar-wrap">
+            <div class="bar-pair">
+              <div class="bar" style="background:#D97706;height:${incH}px;flex:1"></div>
+              <div class="bar" style="background:#DC2626;height:${expH}px;flex:1"></div>
+            </div>
+            <div class="bar-label">${esc(e.name)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="flex gap-12" style="justify-content:center;margin-top:10px">
+        <div class="flex gap-8"><div style="width:12px;height:12px;border-radius:3px;background:#D97706"></div><span style="font-size:13px;color:#6B7280">Pendapatan</span></div>
+        <div class="flex gap-8"><div style="width:12px;height:12px;border-radius:3px;background:#DC2626"></div><span style="font-size:13px;color:#6B7280">Pengeluaran</span></div>
+      </div>`;
+
+  return `
+    <div class="period-wrap">
+      ${PERIODS.map(([id,label])=>`<button class="pill ${state.period===id?'active':''}" data-action="setPeriod" data-period="${id}">${label}</button>`).join('')}
+    </div>
+    <div class="grid-3" style="margin-bottom:14px">
+      ${[
+        {label:'💰 Laba Kotor',sub:'Total semua pendapatan',val:grossInc,c:'#D97706',bg:'#FEF3C7'},
+        {label:'💸 Pengeluaran',sub:'Total biaya operasional',val:totalExp,c:'#DC2626',bg:'#FEF2F2'},
+        {label:'📈 Laba Bersih',sub:'Pendapatan − pengeluaran',val:netInc,c:netInc>=0?'#059669':'#DC2626',bg:netInc>=0?'#ECFDF5':'#FEF2F2'},
+      ].map(s=>`<div class="stat" style="border-color:${s.c};background:${s.bg}">
+        <div class="stat-label" style="color:${s.c}">${s.label}</div>
+        <div class="stat-sub">${s.sub}</div>
+        <div class="stat-val" style="color:${s.c}">${IDR(s.val)}</div>
+      </div>`).join('')}
+    </div>
+    <div class="grid-3" style="margin-bottom:14px">
+      ${[
+        {label:'🧾 Transaksi',val:`${fTx.length}x`,c:'#111827'},
+        {label:'📊 Rata-rata',val:IDR(avgTx),c:'#92400E'},
+        {label:'🛒 Dari Toko',val:IDR(salesInc),c:'#059669'},
+      ].map(s=>`<div class="card" style="padding:14px;margin-bottom:0">
+        <div style="font-size:12px;font-weight:700;color:#6B7280;margin-bottom:5px">${s.label}</div>
+        <div style="font-size:16px;font-weight:900;color:${s.c}">${s.val}</div>
+      </div>`).join('')}
+    </div>
+    <div class="card">
+      <div class="section-title">📊 Grafik Pendapatan & Pengeluaran</div>
+      ${chartHtml}
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PEMBUKUAN
+// ══════════════════════════════════════════════════════════════════════════════
+function buildPembukuan(){
+  const totalSales = state.transactions.reduce((s,t)=>s+t.total,0);
+  const totalMInc  = state.manualIncome.reduce((s,m)=>s+m.amount,0);
+  const totalInc   = totalSales+totalMInc;
+  const totalExp   = state.expenses.reduce((s,e)=>s+e.amount,0);
+  const balance    = totalInc-totalExp;
+
+  const allEntries=[
+    ...state.transactions.map(t=>({
+      id:t.id,date:t.date,type:'income',
+      desc:`🛒 Penjualan — ${t.items.slice(0,2).map(i=>`${i.name} ×${i.qty}`).join(', ')}${t.items.length>2?` +${t.items.length-2} lainnya`:''}`,
+      amount:t.total,source:'kasir'
+    })),
+    ...state.manualIncome.map(m=>({id:m.id,date:m.date,type:'income',desc:m.description,amount:m.amount,source:'manual'})),
+    ...state.expenses.map(e=>({id:e.id,date:e.date,type:'expense',desc:e.description,amount:e.amount,source:'manual'})),
+  ].sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  const filtered = allEntries.filter(e=>{
+    if(state.bFilter==='income')  return e.type==='income';
+    if(state.bFilter==='expense') return e.type==='expense';
+    return true;
+  });
+
+  const formHtml = state.bMode ? `
+    <div class="card" style="border:2px solid ${state.bMode==='expense'?'#FCA5A5':'#6EE7B7'};background:${state.bMode==='expense'?'#FEF2F2':'#ECFDF5'}">
+      <div style="font-weight:800;font-size:17px;margin-bottom:16px;color:${state.bMode==='expense'?'#DC2626':'#059669'}">
+        ${state.bMode==='expense'?'💸 Catat Pengeluaran':'💰 Catat Pendapatan Manual'}
+      </div>
+      <div class="grid-2" style="margin-bottom:12px">
+        <div>
+          <label class="label">Keterangan</label>
+          <input class="inp" id="bDesc" value="${esc(state.bDesc)}" placeholder="${state.bMode==='expense'?'Contoh: Beli stok barang':'Contoh: Uang titipan'}">
+        </div>
+        <div>
+          <label class="label">Jumlah (Rp)</label>
+          <input class="inp" id="bAmount" type="number" value="${esc(state.bAmount)}" placeholder="0">
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label class="label">Tanggal</label>
+        <input class="inp" style="width:auto" id="bDate" type="date" value="${esc(state.bDate)}">
+      </div>
+      <div class="flex gap-8">
+        <button class="btn ${state.bMode==='expense'?'btn-red':'btn-green'}" data-action="submitBuku">💾 Simpan</button>
+        <button class="btn btn-gray" data-action="cancelBuku">Batal</button>
+      </div>
+    </div>` : `
+    <div class="grid-2" style="margin-bottom:14px">
+      <button class="btn btn-red" style="padding:15px;font-size:15px" data-action="openBuku" data-mode="expense">💸 Catat Pengeluaran</button>
+      <button class="btn btn-green" style="padding:15px;font-size:15px" data-action="openBuku" data-mode="income">💰 Pendapatan Manual</button>
+    </div>`;
+
+  return `
+    <div class="grid-3" style="margin-bottom:14px">
+      ${[
+        {label:'💰 Total Pendapatan',val:totalInc,c:'#059669',bg:'#ECFDF5'},
+        {label:'💸 Total Pengeluaran',val:totalExp,c:'#DC2626',bg:'#FEF2F2'},
+        {label:'🏦 Saldo Bersih',val:balance,c:balance>=0?'#92400E':'#DC2626',bg:balance>=0?'#FEF3C7':'#FEF2F2'},
+      ].map(s=>`<div class="stat" style="border-color:${s.c};background:${s.bg}">
+        <div class="stat-label" style="color:${s.c}">${s.label}</div>
+        <div class="stat-val" style="color:${s.c}">${IDR(s.val)}</div>
+      </div>`).join('')}
+    </div>
+    <div class="grid-2" style="margin-bottom:14px">
+      <div class="card" style="padding:14px;margin-bottom:0">
+        <div style="font-size:13px;font-weight:700;color:#6B7280;margin-bottom:5px">🛒 Dari Penjualan Toko</div>
+        <div style="font-size:17px;font-weight:900;color:#059669">${IDR(totalSales)}</div>
+      </div>
+      <div class="card" style="padding:14px;margin-bottom:0">
+        <div style="font-size:13px;font-weight:700;color:#6B7280;margin-bottom:5px">📝 Pendapatan Manual</div>
+        <div style="font-size:17px;font-weight:900;color:#059669">${IDR(totalMInc)}</div>
+      </div>
+    </div>
+    ${formHtml}
+    <div class="card">
+      <div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <div style="font-weight:800;font-size:17px">📒 Riwayat Pembukuan</div>
+        <div class="flex gap-8">
+          ${[['semua','Semua'],['income','Pendapatan'],['expense','Pengeluaran']].map(([id,l])=>
+            `<button class="pill ${state.bFilter===id?'active':''}" data-action="setFilter" data-filter="${id}">${l}</button>`
+          ).join('')}
+        </div>
+      </div>
+      ${filtered.length===0
+        ? `<div class="empty"><div class="empty-icon">📭</div>Belum ada catatan</div>`
+        : filtered.map(e=>`
+          <div class="ledger-row">
+            <div class="ledger-icon" style="background:${e.type==='income'?'#ECFDF5':'#FEF2F2'}">
+              ${e.type==='income'?(e.source==='kasir'?'🛒':'💰'):'💸'}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="ledger-desc">${esc(e.desc)}</div>
+              <div class="ledger-date">${dateStr(e.date)} · ${e.source==='kasir'?'Otomatis dari Kasir':'Input Manual'}</div>
+            </div>
+            <div class="ledger-amt" style="color:${e.type==='income'?'#059669':'#DC2626'}">
+              ${e.type==='income'?'+':'−'}${IDR(e.amount)}
+            </div>
+          </div>`).join('')}
+    </div>`;
+}
+
+// ── Event handling — attached ONCE at boot ────────────────────────────────────
+function attachEvents(){
+  // Read DOM value safely
+  const val = id => { const el=document.getElementById(id); return el?el.value:''; };
+
+  document.addEventListener('input', e=>{
+    const el=e.target;
+    if(el.id==='paymentInput'){ state.payment=el.value; syncKasirChange(); }
+    if(el.id==='pSearch')     { state.pSearch=el.value; renderSection(); }
+  });
+
+  document.addEventListener('click', e=>{
+    const btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    const a = btn.dataset.action;
+
+    if(a==='tab')         { state.tab=btn.dataset.tab; render(); return }
+    if(a==='openRename')  { state.renameOpen=true; render(); return }
+    if(a==='closeRename') { state.renameOpen=false; render(); return }
+    if(a==='saveRename')  {
+      const v = val('renameInput').trim();
+      if(v){ state.storeName=v; save('ksr-name',v); }
+      state.renameOpen=false; render(); return
+    }
+    if(a==='pickEmoji')   { state.pEmoji=btn.dataset.emoji; renderSection(); return }
+    if(a==='addCart')     { addToCart(btn.dataset.id); return }
+    if(a==='qtyInc')      { adjustQty(btn.dataset.id,1); return }
+    if(a==='qtyDec')      { adjustQty(btn.dataset.id,-1); return }
+    if(a==='clearCart')   { state.cart=[]; state.payment=''; renderSection(); return }
+    if(a==='checkout')    { doCheckout(); return }
+    if(a==='newTx')       { state.doneTx=null; renderSection(); return }
+    if(a==='saveProduk')  {
+      state.pName=val('pName'); state.pPrice=val('pPrice');
+      saveProduk(); return
+    }
+    if(a==='resetProduk') { resetProduk(); return }
+    if(a==='editProduk')  { editProduk(btn.dataset.id); return }
+    if(a==='deleteProduk'){
+      state.deleteTarget=state.products.find(x=>x.id===btn.dataset.id);
+      render(); return
+    }
+    if(a==='confirmDelete'){
+      state.products=state.products.filter(p=>p.id!==state.deleteTarget.id);
+      save('ksr-products',state.products); state.deleteTarget=null; render(); return
+    }
+    if(a==='cancelDelete') { state.deleteTarget=null; render(); return }
+    if(a==='setPeriod')    { state.period=btn.dataset.period; renderSection(); return }
+    if(a==='openBuku')     { state.bMode=btn.dataset.mode; state.bDesc=''; state.bAmount=''; state.bDate=today(); renderSection(); return }
+    if(a==='cancelBuku')   { state.bMode=null; renderSection(); return }
+    if(a==='submitBuku')   {
+      state.bDesc=val('bDesc'); state.bAmount=val('bAmount');
+      const d=val('bDate'); if(d) state.bDate=d;
+      submitBuku(); return
+    }
+    if(a==='setFilter')    { state.bFilter=btn.dataset.filter; renderSection(); return }
+  });
+}
+
+function renderSection(){
+  const c = document.querySelector('.content');
+  if(!c) return;
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===state.tab));
+  c.innerHTML =
+    state.tab==='kasir'     ? buildKasir()     :
+    state.tab==='produk'    ? buildProduk()    :
+    state.tab==='laporan'   ? buildLaporan()   : buildPembukuan();
+}
+
+function syncKasirChange(){
+  const payNum = parseInt(state.payment)||0;
+  const total  = state.cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const change = payNum-total;
+  const canPay = state.cart.length>0 && payNum>=total && payNum>0;
+  // update change box
+  let box = document.querySelector('.change-box');
+  const btnPay = document.querySelector('[data-action="checkout"]');
+  if(btnPay) btnPay.disabled = !canPay;
+  if(state.payment){
+    const color = change>=0?'#059669':'#DC2626';
+    const bg    = change>=0?'#ECFDF5':'#FEF2F2';
+    const bdr   = change>=0?'#6EE7B7':'#FCA5A5';
+    if(!box){
+      box=document.createElement('div');
+      box.className='change-box';
+      btnPay && btnPay.parentNode.insertBefore(box, btnPay);
+    }
+    box.style.background=bg; box.style.border=`2px solid ${bdr}`;
+    box.innerHTML=`<div class="change-label" style="color:${color}">${change>=0?'KEMBALIAN':'⚠️ UANG KURANG'}</div>
+      <div class="change-val" style="color:${color}">${IDR(Math.abs(change))}</div>`;
+  } else if(box){ box.remove() }
+}
+
+function addToCart(id){
+  const p = state.products.find(x=>x.id===id);
+  if(!p) return;
+  const ex = state.cart.find(i=>i.id===id);
+  if(ex) ex.qty++; else state.cart.push({...p,qty:1});
+  renderSection();
+}
+function adjustQty(id,delta){
+  const idx = state.cart.findIndex(i=>i.id===id);
+  if(idx<0) return;
+  state.cart[idx].qty+=delta;
+  if(state.cart[idx].qty<=0) state.cart.splice(idx,1);
+  renderSection();
+}
+function doCheckout(){
+  const total  = state.cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const payNum = parseInt(state.payment)||0;
+  if(state.cart.length===0||payNum<total) return;
+  const tx={id:uid(),date:new Date().toISOString(),items:state.cart.map(i=>({name:i.name,price:i.price,qty:i.qty,emoji:i.emoji})),total,payment:payNum,change:payNum-total};
+  state.transactions.push(tx);
+  save('ksr-tx',state.transactions);
+  state.doneTx=tx; state.cart=[]; state.payment='';
+  renderSection();
+}
+function saveProduk(){
+  const name=state.pName.trim(), price=parseInt(state.pPrice);
+  if(!name){ state.pErr='Nama produk harus diisi'; renderSection(); return }
+  if(!price||price<=0){ state.pErr='Harga harus berupa angka yang benar'; renderSection(); return }
+  const item={id:state.pEditing||uid(),name,price,emoji:state.pEmoji};
+  if(state.pEditing){ state.products=state.products.map(x=>x.id===state.pEditing?item:x) }
+  else { state.products.push(item) }
+  save('ksr-products',state.products);
+  resetProduk();
+}
+function resetProduk(){ state.pName=''; state.pPrice=''; state.pEmoji='🛍️'; state.pEditing=null; state.pErr=''; renderSection() }
+function editProduk(id){
+  const p=state.products.find(x=>x.id===id);
+  if(!p) return;
+  state.pEditing=id; state.pName=p.name; state.pPrice=String(p.price); state.pEmoji=p.emoji||'🛍️';
+  window.scrollTo({top:0,behavior:'smooth'}); renderSection();
+}
+function submitBuku(){
+  const desc=state.bDesc.trim(), amount=parseInt(state.bAmount);
+  if(!desc||!amount) return;
+  const entry={id:uid(),date:new Date(state.bDate+'T12:00:00').toISOString(),description:desc,amount};
+  if(state.bMode==='expense'){ state.expenses.push(entry); save('ksr-exp',state.expenses) }
+  else { state.manualIncome.push(entry); save('ksr-minc',state.manualIncome) }
+  state.bMode=null; state.bDesc=''; state.bAmount=''; state.bDate=today();
+  renderSection();
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────────
+render();
+attachEvents();
+</script>
+</body>
+</html>
