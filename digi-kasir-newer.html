@@ -307,7 +307,7 @@ function buildKasir(){
         <div style="display:flex;justify-content:space-between;font-weight:900;font-size:20px;margin-bottom:14px">
           <span>Total</span><span style="color:#92400E">${IDR(total)}</span>
         </div>
-        <label class="label">💵 Uang Diterima (Rp)</label>
+        <label class="label">💵 Jumlah Uang Diterima (Rp)</label>
         <input class="inp" type="number" id="paymentInput" value="${esc(state.payment)}" placeholder="Masukkan jumlah uang..." style="margin-bottom:12px;font-size:18px;font-weight:800">
         ${changeHtml}
         <button class="btn btn-green btn-full" data-action="checkout" ${canPay?'':'disabled'} style="margin-bottom:8px">✅ Selesaikan Transaksi</button>
